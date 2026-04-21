@@ -197,6 +197,7 @@ let charts={};
 let editDate=null;
 let DATA={fr:[],debout:[]};
 let saving=false;
+let initializing=true;
 let lastSaveTs=0;
 
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -256,6 +257,7 @@ async function init(){
     setSyncStatus('err','Mode hors-ligne');
   }
   document.getElementById('loading-overlay').style.display='none';
+  initializing=false;
   buildPeriodBar();
   document.getElementById('entry-date').value=today();
   renderCurrent();
@@ -263,7 +265,7 @@ async function init(){
 }
 
 async function syncFromRemote(){
-  if(saving)return;
+  if(saving||initializing)return;
   const remote=await binLoad();
   if(!remote)return;
   // Ne pas écraser si on vient de sauvegarder il y a moins de 10s

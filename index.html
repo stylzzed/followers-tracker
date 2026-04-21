@@ -235,14 +235,14 @@ async function init(){
   if(remote){
     const fr=(remote.fr||[]).map(migrate);
     const db=(remote.debout||[]).map(migrate);
-    if(fr.length===0&&db.length===0){
-      // Bin vide : injecter le seed et sauvegarder
+    if(!remote._seeded){
+      // Première ouverture : seed + flag
       const t=today();
       DATA.fr=[{id:genId(),date:t,followers:{...SEED.fr},posts:{},reactions:{}}];
       DATA.debout=[{id:genId(),date:t,followers:{...SEED.debout},posts:{},reactions:{}}];
-      await binSave(DATA);
+      await binSave({...DATA, _seeded:true});
     }else{
-      // Bin non vide : charger sans toucher
+      // Bin déjà initialisé : charger sans toucher
       DATA.fr=fr;
       DATA.debout=db;
       lastSaveTs=remote._ts||0;
@@ -283,7 +283,7 @@ async function syncFromRemote(){
 
 async function setData(ent,d){
   DATA[ent]=d;
-  await binSave({fr:DATA.fr,debout:DATA.debout});
+  await binSave({fr:DATA.fr, debout:DATA.debout, _seeded:true});
 }
 
 window.addEventListener('DOMContentLoaded',init);

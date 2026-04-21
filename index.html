@@ -197,6 +197,7 @@ let charts={};
 let editDate=null;
 let DATA={fr:[],debout:[]};
 let saving=false;
+let lastSaveTs=0;
 
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function getData(ent){return DATA[ent]||[];}
@@ -221,8 +222,10 @@ async function binLoad(){
 async function binSave(data){
   try{
     setSyncStatus('loading','Sauvegarde…');
-    const r=await fetch(BIN_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':API_KEY},body:JSON.stringify(data)});
+    const payload={...data, _ts: Date.now()};
+    const r=await fetch(BIN_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':API_KEY},body:JSON.stringify(payload)});
     if(!r.ok){const t=await r.text();console.error('binSave error',r.status,t);setSyncStatus('err','Erreur '+r.status+' — voir console');return;}
+    lastSaveTs=payload._ts;
     setSyncStatus('ok','Sauvegardé');
   }catch(e){console.error('binSave exception',e);setSyncStatus('err','Erreur réseau');}
 }
@@ -258,11 +261,16 @@ async function syncFromRemote(){
   if(saving)return;
   const remote=await binLoad();
   if(!remote)return;
+  // Ne pas écraser si on vient de sauvegarder il y a moins de 10s
+  if(Date.now()-lastSaveTs < 10000)return;
+  const remoteTs=remote._ts||0;
+  if(remoteTs<=lastSaveTs)return;
   const newFr=(remote.fr||[]).map(migrate);
   const newDb=(remote.debout||[]).map(migrate);
   const changed=JSON.stringify(newFr)!==JSON.stringify(DATA.fr)||JSON.stringify(newDb)!==JSON.stringify(DATA.debout);
   if(changed){
     DATA.fr=newFr;DATA.debout=newDb;
+    lastSaveTs=remoteTs;
     setSyncStatus('ok','Mis à jour');
     renderCurrent();
   }

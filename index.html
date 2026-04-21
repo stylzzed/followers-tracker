@@ -213,7 +213,7 @@ function setSyncStatus(state,label){
 // JSONBIN
 async function binLoad(){
   try{
-    const r=await fetch(BIN_URL+'/latest',{headers:{'X-Master-Key':API_KEY,'X-Bin-Meta':false}});
+    const r=await fetch(BIN_URL+'/latest?nocache='+Date.now(),{headers:{'X-Master-Key':API_KEY,'X-Bin-Meta':false}});
     if(!r.ok){const t=await r.text();console.error('binLoad error',r.status,t);setSyncStatus('err','Erreur '+r.status);return null;}
     const j=await r.json();
     return j.record||{fr:[],debout:[]};
@@ -243,9 +243,10 @@ async function init(){
       DATA.debout=[{id:genId(),date:t,followers:{...SEED.debout},posts:{},reactions:{}}];
       await binSave({...DATA, _seeded:true});
     }else{
-      // Bin déjà initialisé : charger sans toucher
-      DATA.fr=fr;
-      DATA.debout=db;
+      if(fr.length>0)DATA.fr=fr;
+      else if(DATA.fr.length===0)DATA.fr=[{id:genId(),date:today(),followers:{...SEED.fr},posts:{},reactions:{}}];
+      if(db.length>0)DATA.debout=db;
+      else if(DATA.debout.length===0)DATA.debout=[{id:genId(),date:today(),followers:{...SEED.debout},posts:{},reactions:{}}];
       lastSaveTs=remote._ts||0;
       setSyncStatus('ok','Synchronisé');
     }

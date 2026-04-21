@@ -233,21 +233,26 @@ async function binSave(data){
 async function init(){
   const remote=await binLoad();
   if(remote){
-    DATA.fr=(remote.fr||[]).map(migrate);
-    DATA.debout=(remote.debout||[]).map(migrate);
-    // Seed si vide
-    let seeded=false;
-    if(DATA.fr.length===0&&DATA.debout.length===0){
+    const fr=(remote.fr||[]).map(migrate);
+    const db=(remote.debout||[]).map(migrate);
+    if(fr.length===0&&db.length===0){
+      // Bin vide : injecter le seed et sauvegarder
       const t=today();
-      for(const ent of['fr','debout'])DATA[ent]=[{id:genId(),date:t,followers:{...SEED[ent]},posts:{},reactions:{}}];
-      seeded=true;
+      DATA.fr=[{id:genId(),date:t,followers:{...SEED.fr},posts:{},reactions:{}}];
+      DATA.debout=[{id:genId(),date:t,followers:{...SEED.debout},posts:{},reactions:{}}];
+      await binSave(DATA);
+    }else{
+      // Bin non vide : charger sans toucher
+      DATA.fr=fr;
+      DATA.debout=db;
+      lastSaveTs=remote._ts||0;
+      setSyncStatus('ok','Synchronisé');
     }
-    setSyncStatus('ok','Synchronisé');
-    if(seeded)await binSave(DATA);
   }else{
-    // fallback mémoire
+    // Erreur réseau : fallback seed local sans sauvegarde
     const t=today();
-    for(const ent of['fr','debout'])DATA[ent]=[{id:genId(),date:t,followers:{...SEED[ent]},posts:{},reactions:{}}];
+    DATA.fr=[{id:genId(),date:t,followers:{...SEED.fr},posts:{},reactions:{}}];
+    DATA.debout=[{id:genId(),date:t,followers:{...SEED.debout},posts:{},reactions:{}}];
     setSyncStatus('err','Mode hors-ligne');
   }
   document.getElementById('loading-overlay').style.display='none';

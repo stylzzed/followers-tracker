@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Suivi Followers & Engagement</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bb:#F5F0E8;--bm:#EDE7DA;--bd:#D8CFBE;--wh:#FFFFFF;
+  --tm:#1E1A14;--ts:#6B6357;--th:#9E9385;
+  --gp:#2A7D5F;--rn:#B84040;--r:11px;
+}
+body{background:var(--bb);color:var(--tm);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-height:100vh;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--wh);border-bottom:1px solid var(--bd);gap:12px;flex-wrap:wrap}
+.entity-toggle{display:flex;background:var(--bm);border-radius:8px;padding:3px;gap:2px}
+.entity-toggle button{padding:6px 16px;border:none;background:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;color:var(--ts);transition:.15s}
+.entity-toggle button.active{background:var(--wh);color:var(--tm);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.topbar-right{display:flex;gap:8px;align-items:center}
+.btn-export{padding:7px 16px;background:var(--tm);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.btn-export:hover{opacity:.85}
+.sync-status{font-size:11px;color:var(--th);display:flex;align-items:center;gap:5px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--th)}
+.sync-dot.ok{background:var(--gp)}.sync-dot.err{background:var(--rn)}.sync-dot.loading{background:#f0a500;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tabs{display:flex;background:var(--wh);border-bottom:1px solid var(--bd);padding:0 20px;overflow-x:auto}
+.tabs button{padding:12px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--ts);border-bottom:2px solid transparent;transition:.15s;white-space:nowrap}
+.tabs button.active{color:var(--tm);border-bottom-color:var(--tm)}
+.content{flex:1;padding:20px;max-width:1100px;width:100%;margin:0 auto}
+.period-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+.period-bar button{padding:5px 13px;border:1px solid var(--bd);background:var(--wh);border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;color:var(--ts);transition:.15s}
+.period-bar button.active{background:var(--tm);color:#fff;border-color:var(--tm)}
+.period-custom{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.period-custom input{padding:5px 9px;border:1px solid var(--bd);border-radius:8px;font-size:12px;background:var(--wh)}
+.section-title{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--ts);font-weight:700;margin:22px 0 10px}
+.kpi-card{background:var(--wh);border:1px solid var(--bd);border-radius:var(--r);padding:18px 24px;display:flex;gap:32px;margin-bottom:18px;flex-wrap:wrap}
+.kpi-block label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ts);margin-bottom:4px}
+.kpi-block .val{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.kpi-block .delta{font-size:14px;font-weight:600;margin-top:2px}
+.pos{color:var(--gp)}.neg{color:var(--rn)}
+.net-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:10px}
+.net-card{background:var(--wh);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px}
+.net-card .net-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.net-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.net-name{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ts)}
+.net-val{font-size:18px;font-weight:700;margin-bottom:3px}
+.net-gain{font-size:12px;font-weight:600}
+.net-badge{display:inline-block;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700;margin-top:3px}
+.badge-pos{background:#d4edda;color:var(--gp)}.badge-neg{background:#f8d7da;color:var(--rn)}.badge-zero{background:var(--bm);color:var(--th)}
+.chart-card{background:var(--wh);border:1px solid var(--bd);border-radius:var(--r);padding:16px;margin-bottom:18px}
+.chart-card h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ts);margin-bottom:12px}
+.chart-wrap{position:relative;height:200px}
+.chart-wrap.tall{height:240px}
+.legend-pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.legend-pill{padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--bd);background:var(--bm);font-weight:600;transition:.15s;user-select:none}
+.legend-pill.hidden{opacity:.35}
+.form-card{background:var(--wh);border:1px solid var(--bd);border-radius:var(--r);padding:20px}
+.form-date{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.form-date label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ts)}
+.form-date input{padding:7px 11px;border:1px solid var(--bd);border-radius:8px;font-size:13px}
+.net-input-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:18px}
+.net-input-card{background:var(--bm);border:1px solid var(--bd);border-radius:var(--r);padding:12px}
+.net-input-card .net-head{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.input-row{margin-bottom:7px}
+.input-row label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--ts);margin-bottom:3px}
+.input-row input{width:100%;padding:6px 9px;border:1px solid var(--bd);border-radius:7px;font-size:13px;font-weight:600;background:var(--wh)}
+.input-row small{display:block;margin-top:3px;font-size:10px;color:var(--ts)}
+.form-actions{display:flex;gap:10px;justify-content:flex-end}
+.btn-save{padding:9px 24px;background:var(--tm);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700}
+.btn-cancel{padding:9px 16px;background:none;border:1px solid var(--bd);border-radius:8px;cursor:pointer;font-size:13px;color:var(--ts)}
+.confirm-box{background:#fff8e1;border:1px solid #f0c040;border-radius:9px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#7a5c00}
+.history-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:var(--wh);border-radius:var(--r);overflow:hidden;border:1px solid var(--bd)}
+th{background:var(--bm);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--ts);padding:9px 10px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--bd);font-size:12px;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+.btn-sm{padding:4px 10px;border-radius:6px;border:1px solid var(--bd);background:none;cursor:pointer;font-size:11px;font-weight:700;color:var(--ts)}
+.btn-del{border-color:#f8d7da;color:var(--rn)}
+.loading-overlay{position:fixed;inset:0;background:rgba(245,240,232,.8);display:flex;align-items:center;justify-content:center;z-index:100;font-size:14px;color:var(--ts);font-weight:600;gap:10px}
+footer{padding:12px 20px;text-align:center;font-size:11px;color:var(--th);border-top:1px solid var(--bd);background:var(--wh)}
+.hidden-tab{display:none}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay" class="loading-overlay">
+  <div class="sync-dot loading"></div> Chargement des données…
+</div>
+
+<div class="topbar">
+  <div class="entity-toggle">
+    <button id="btn-fr" class="active" onclick="switchEntity('fr')">FR</button>
+    <button id="btn-db" onclick="switchEntity('debout')">Debout!</button>
+  </div>
+  <div class="topbar-right">
+    <div class="sync-status"><div id="sync-dot" class="sync-dot"></div><span id="sync-label">—</span></div>
+    <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button id="tab-dash" class="active" onclick="switchTab('dash')">Tableau de bord</button>
+  <button id="tab-new" onclick="switchTab('new')">+ Nouvelle saisie</button>
+  <button id="tab-hist" onclick="switchTab('hist')">Historique followers</button>
+  <button id="tab-eng" onclick="switchTab('eng')">Historique engagement</button>
+</div>
+
+<div class="content">
+  <!-- DASHBOARD -->
+  <div id="pane-dash">
+    <div class="period-bar" id="period-bar"></div>
+    <div id="custom-dates" style="display:none" class="period-custom">
+      <label style="font-size:11px;color:var(--ts)">Du</label><input type="date" id="cust-from">
+      <label style="font-size:11px;color:var(--ts)">Au</label><input type="date" id="cust-to">
+      <button class="btn-save" style="padding:5px 12px;font-size:12px" onclick="renderDash()">OK</button>
+    </div>
+    <div id="kpi-card"></div>
+    <div class="section-title">Abonnés par réseau</div>
+    <div id="net-grid-followers" class="net-grid"></div>
+    <div class="section-title">Réactions / Views par réseau</div>
+    <div id="net-grid-reactions" class="net-grid"></div>
+    <div class="section-title">Ratio réactions / post par réseau</div>
+    <div id="net-grid-ratio" class="net-grid"></div>
+    <div class="chart-card"><h3>Évolution du total abonnés</h3><div class="chart-wrap"><canvas id="ch-total"></canvas></div></div>
+    <div class="chart-card"><h3>Gains et pertes followers par saisie</h3><div class="chart-wrap"><canvas id="ch-delta"></canvas></div></div>
+    <div class="chart-card"><h3>Évolution followers par réseau</h3><div id="leg-followers" class="legend-pills"></div><div class="chart-wrap tall"><canvas id="ch-nets"></canvas></div></div>
+    <div class="chart-card"><h3>Réactions par réseau (hors YouTube & TikTok)</h3><div id="leg-reactions" class="legend-pills"></div><div class="chart-wrap tall"><canvas id="ch-reactions"></canvas></div></div>
+    <div class="chart-card"><h3>Réactions par post par réseau (hors YouTube & TikTok)</h3><div id="leg-reactpost" class="legend-pills"></div><div class="chart-wrap tall"><canvas id="ch-reactpost"></canvas></div></div>
+    <div class="chart-card"><h3>Views YouTube & TikTok</h3><div id="leg-views" class="legend-pills"></div><div class="chart-wrap"><canvas id="ch-views"></canvas></div></div>
+    <div class="chart-card"><h3>Views par post — YouTube & TikTok</h3><div id="leg-viewspost" class="legend-pills"></div><div class="chart-wrap"><canvas id="ch-viewspost"></canvas></div></div>
+  </div>
+
+  <!-- NEW ENTRY -->
+  <div id="pane-new" class="hidden-tab">
+    <div class="form-card">
+      <div class="form-date">
+        <label>Date de saisie</label>
+        <input type="date" id="entry-date" onchange="checkOverwrite()">
+      </div>
+      <div id="overwrite-warn" style="display:none" class="confirm-box">⚠️ Une saisie existe déjà pour cette date. Enregistrer écrasera les données existantes.</div>
+      <div id="net-inputs" class="net-input-grid"></div>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="cancelForm()">Annuler</button>
+        <button class="btn-save" onclick="saveEntry()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY FOLLOWERS -->
+  <div id="pane-hist" class="hidden-tab">
+    <div class="history-wrap"><table><thead><tr id="hist-head"></tr></thead><tbody id="hist-body"></tbody></table></div>
+  </div>
+
+  <!-- HISTORY ENGAGEMENT -->
+  <div id="pane-eng" class="hidden-tab">
+    <div class="history-wrap"><table><thead><tr id="eng-head"></tr></thead><tbody id="eng-body"></tbody></table></div>
+  </div>
+</div>
+
+<footer>Données partagées entre tous les utilisateurs du lien · Pense à exporter en CSV régulièrement pour garder un backup.</footer>
+
+<script>
+const BIN_ID = '69e773f9856a68218958f45c';
+const API_KEY = '$2a$10$OMpFWAyzFPzU9M6NGVEx..rJJJ6LyT7hDA58Bq3w3Tc.2kTiInSku';
+const BIN_URL = `https://corsproxy.io/?https://api.jsonbin.io/v3/b/${BIN_ID}`;
+const HEADERS = {'Content-Type':'application/json','X-Master-Key':API_KEY,'X-Bin-Versioning':'false'};
+
+const NETS=[
+  {id:'facebook', name:'Facebook', color:'#378ADD', engagement:true},
+  {id:'x',        name:'X',        color:'#2C2C2A', engagement:true},
+  {id:'instagram',name:'Instagram',color:'#D4537E', engagement:true},
+  {id:'tiktok',   name:'TikTok',   color:'#1D9E75', engagement:true, views:true},
+  {id:'linkedin', name:'LinkedIn', color:'#0C447C', engagement:true},
+  {id:'bluesky',  name:'Bluesky',  color:'#85B7EB', engagement:true},
+  {id:'threads',  name:'Threads',  color:'#5F5E5A', engagement:true},
+  {id:'youtube',  name:'YouTube',  color:'#E24B4A', engagement:true, views:true},
+  {id:'telegram', name:'Telegram', color:'#185FA5', engagement:false},
+  {id:'whatsapp', name:'WhatsApp', color:'#639922', engagement:false},
+];
+const NETS_ENG=NETS.filter(n=>n.engagement);
+const NETS_VIEWS=NETS.filter(n=>n.views);
+const NETS_REACT=NETS.filter(n=>n.engagement&&!n.views);
+const DASH_PATTERNS=[[],[5,3],[2,2],[8,3],[4,2,1,2],[6,2,2,2],[3,1],[10,3,1,3],[5,5],[2,5]];
+const SEED={
+  fr:{facebook:920448,x:449140,instagram:468736,tiktok:186900,linkedin:39296,bluesky:24235,threads:143750,youtube:253073,telegram:8884,whatsapp:14070},
+  debout:{facebook:53445,x:7931,instagram:32778,tiktok:1606,linkedin:933,bluesky:827,threads:2815,youtube:2090,telegram:727,whatsapp:773}
+};
+
+const fmt=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n));
+const fmtD=n=>n%1===0?fmt(n):new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1}).format(n);
+const today=()=>new Date().toISOString().slice(0,10);
+
+let entity='fr',tab='dash',period='30j';
+let hiddenNets={followers:new Set(),reactions:new Set(),reactpost:new Set(),views:new Set(),viewspost:new Set()};
+let charts={};
+let editDate=null;
+let DATA={fr:[],debout:[]};
+let saving=false;
+
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function getData(ent){return DATA[ent]||[];}
+function migrate(e){return e.followers?e:{id:e.id,date:e.date,followers:{...e.values},posts:{},reactions:{}};}
+function totalFollowers(e){return NETS.reduce((s,n)=>s+(e.followers[n.id]||0),0);}
+
+function setSyncStatus(state,label){
+  const dot=document.getElementById('sync-dot'),lbl=document.getElementById('sync-label');
+  dot.className='sync-dot '+state;lbl.textContent=label;
+}
+
+// JSONBIN
+async function binLoad(){
+  try{
+    const r=await fetch(BIN_URL+'/latest',{headers:{'X-Master-Key':API_KEY,'X-Bin-Meta':false}});
+    if(!r.ok){const t=await r.text();console.error('binLoad error',r.status,t);setSyncStatus('err','Erreur '+r.status);return null;}
+    const j=await r.json();
+    return j.record||{fr:[],debout:[]};
+  }catch(e){console.error('binLoad exception',e);setSyncStatus('err','Erreur réseau');return null;}
+}
+
+async function binSave(data){
+  try{
+    setSyncStatus('loading','Sauvegarde…');
+    const r=await fetch(BIN_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':API_KEY},body:JSON.stringify(data)});
+    if(!r.ok){const t=await r.text();console.error('binSave error',r.status,t);setSyncStatus('err','Erreur '+r.status+' — voir console');return;}
+    setSyncStatus('ok','Sauvegardé');
+  }catch(e){console.error('binSave exception',e);setSyncStatus('err','Erreur réseau');}
+}
+
+async function init(){
+  const remote=await binLoad();
+  if(remote){
+    DATA.fr=(remote.fr||[]).map(migrate);
+    DATA.debout=(remote.debout||[]).map(migrate);
+    // Seed si vide
+    let seeded=false;
+    if(DATA.fr.length===0&&DATA.debout.length===0){
+      const t=today();
+      for(const ent of['fr','debout'])DATA[ent]=[{id:genId(),date:t,followers:{...SEED[ent]},posts:{},reactions:{}}];
+      seeded=true;
+    }
+    setSyncStatus('ok','Synchronisé');
+    if(seeded)await binSave(DATA);
+  }else{
+    // fallback mémoire
+    const t=today();
+    for(const ent of['fr','debout'])DATA[ent]=[{id:genId(),date:t,followers:{...SEED[ent]},posts:{},reactions:{}}];
+    setSyncStatus('err','Mode hors-ligne');
+  }
+  document.getElementById('loading-overlay').style.display='none';
+  buildPeriodBar();
+  document.getElementById('entry-date').value=today();
+  renderCurrent();
+  setInterval(syncFromRemote, 30000);
+}
+
+async function syncFromRemote(){
+  if(saving)return;
+  const remote=await binLoad();
+  if(!remote)return;
+  const newFr=(remote.fr||[]).map(migrate);
+  const newDb=(remote.debout||[]).map(migrate);
+  const changed=JSON.stringify(newFr)!==JSON.stringify(DATA.fr)||JSON.stringify(newDb)!==JSON.stringify(DATA.debout);
+  if(changed){
+    DATA.fr=newFr;DATA.debout=newDb;
+    setSyncStatus('ok','Mis à jour');
+    renderCurrent();
+  }
+}
+
+async function setData(ent,d){
+  DATA[ent]=d;
+  await binSave({fr:DATA.fr,debout:DATA.debout});
+}
+
+window.addEventListener('DOMContentLoaded',init);
+
+function renderCurrent(){
+  if(tab==='dash')renderDash();
+  else if(tab==='new')renderForm();
+  else if(tab==='hist')renderHist();
+  else renderEngHist();
+}
+
+// PERIOD
+function buildPeriodBar(){
+  const bar=document.getElementById('period-bar');bar.innerHTML='';
+  ['7j','30j','90j','1 an','Tout','Perso.'].forEach(p=>{
+    const b=document.createElement('button');b.textContent=p;b.className=p===period?'active':'';
+    b.onclick=()=>{period=p;buildPeriodBar();document.getElementById('custom-dates').style.display=p==='Perso.'?'flex':'none';renderDash();};
+    bar.appendChild(b);
+  });
+}
+
+function getPeriodRange(){
+  const entries=[...getData(entity)].sort((a,b)=>a.date.localeCompare(b.date));
+  if(!entries.length)return{from:null,to:null};
+  const last=entries[entries.length-1].date,lastD=new Date(last);
+  if(period==='Tout')return{from:entries[0].date,to:last};
+  if(period==='Perso.')return{from:document.getElementById('cust-from').value||entries[0].date,to:document.getElementById('cust-to').value||last};
+  const days=period==='7j'?7:period==='30j'?30:period==='90j'?90:365;
+  const from=new Date(lastD);from.setDate(from.getDate()-days);
+  return{from:from.toISOString().slice(0,10),to:last};
+}
+
+function filterEntries(entries,from,to){return entries.filter(e=>(!from||e.date>=from)&&(!to||e.date<=to));}
+function labelDate(s){const d=new Date(s);return(d.getDate()+'').padStart(2,'0')+'/'+(d.getMonth()+1+'').padStart(2,'0');}
+
+// DASHBOARD
+function renderDash(){
+  const raw=[...getData(entity)].sort((a,b)=>a.date.localeCompare(b.date));
+  const{from,to}=getPeriodRange();
+  const entries=filterEntries(raw,from,to);
+  const kpiEl=document.getElementById('kpi-card');
+  if(!entries.length){kpiEl.innerHTML='<div style="padding:16px;color:var(--ts)">Aucune donnée pour cette période.</div>';}
+  else{
+    const first=entries[0],last=entries[entries.length-1];
+    const totL=totalFollowers(last),totF=totalFollowers(first);
+    const delta=totL-totF,pct=totF?((delta/totF)*100).toFixed(1):'—';
+    const sign=delta>=0?'+':'',cls=delta>=0?'pos':'neg';
+    kpiEl.innerHTML=`<div class="kpi-card"><div class="kpi-block"><label>Total abonnés</label><div class="val">${fmt(totL)}</div></div><div class="kpi-block"><label>Sur la période</label><div class="val ${cls}">${sign}${fmt(delta)}</div><div class="delta ${cls}">${sign}${pct}%</div></div></div>`;
+  }
+  renderNetCards('net-grid-followers',entries,'followers',NETS);
+  renderNetCards('net-grid-reactions',entries,'reactions',NETS_ENG);
+  renderRatioCards(entries);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>buildCharts(entries)));
+}
+
+function renderNetCards(gridId,entries,field,netList){
+  const grid=document.getElementById(gridId);grid.innerHTML='';
+  netList.forEach(n=>{
+    const last=entries.length?(entries[entries.length-1][field]||{})[n.id]||0:0;
+    const first=entries.length?(entries[0][field]||{})[n.id]||0:0;
+    const delta=last-first,pct=first?((delta/first)*100).toFixed(1):'0.0';
+    const sign=delta>=0?'+':'',gainCls=delta>0?'pos':delta<0?'neg':'';
+    const badgeCls=delta>0?'badge-pos':delta<0?'badge-neg':'badge-zero';
+    const lbl=field==='reactions'?(n.views?'Views':'Réactions'):'Abonnés';
+    grid.innerHTML+=`<div class="net-card"><div class="net-head"><div class="net-dot" style="background:${n.color}"></div><span class="net-name">${n.name}</span></div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--th);margin-bottom:4px">${lbl}</div><div class="net-val">${fmt(last)}</div><div class="net-gain ${gainCls}">${sign}${fmt(delta)}</div><span class="net-badge ${badgeCls}">${sign}${pct}%</span></div>`;
+  });
+}
+
+function renderRatioCards(entries){
+  const grid=document.getElementById('net-grid-ratio');grid.innerHTML='';
+  NETS_ENG.forEach(n=>{
+    const lE=entries.length?entries[entries.length-1]:null,fE=entries.length?entries[0]:null;
+    const lR=(lE?.reactions||{})[n.id]||0,lP=(lE?.posts||{})[n.id]||0;
+    const fR=(fE?.reactions||{})[n.id]||0,fP=(fE?.posts||{})[n.id]||0;
+    const rL=lP?lR/lP:0,rF=fP?fR/fP:0;
+    const delta=rL-rF,pct=rF?((delta/rF)*100).toFixed(1):'0.0';
+    const sign=delta>=0?'+':'',gainCls=delta>0?'pos':delta<0?'neg':'';
+    const badgeCls=delta>0?'badge-pos':delta<0?'badge-neg':'badge-zero';
+    grid.innerHTML+=`<div class="net-card"><div class="net-head"><div class="net-dot" style="background:${n.color}"></div><span class="net-name">${n.name}</span></div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--th);margin-bottom:4px">${n.views?'Views/post':'Réactions/post'}</div><div class="net-val">${fmtD(rL)}</div><div class="net-gain ${gainCls}">${sign}${fmtD(delta)}</div><span class="net-badge ${badgeCls}">${sign}${pct}%</span></div>`;
+  });
+}
+
+// CHARTS
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function chartOpts(tickCb){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(180,165,145,.22)'},ticks:{color:'#9E9385',font:{size:10}}},y:{grid:{color:'rgba(180,165,145,.22)'},ticks:{color:'#9E9385',font:{size:10},callback:tickCb||(v=>fmt(v))}}}};}
+
+function buildLegendPills(cid,netList,key){
+  const el=document.getElementById(cid);el.innerHTML='';
+  netList.forEach(n=>{
+    const pill=document.createElement('span');
+    pill.className='legend-pill'+(hiddenNets[key].has(n.id)?' hidden':'');
+    pill.style.borderColor=n.color;
+    pill.innerHTML=`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${n.color};margin-right:5px"></span>${n.name}`;
+    pill.onclick=()=>{
+      if(hiddenNets[key].has(n.id))hiddenNets[key].delete(n.id);else hiddenNets[key].add(n.id);
+      if(charts[key]){const ds=charts[key].data.datasets.find(d=>d.label===n.name);if(ds){ds.hidden=hiddenNets[key].has(n.id);charts[key].update();}}
+      pill.classList.toggle('hidden');
+    };
+    el.appendChild(pill);
+  });
+}
+
+function lineDS(entries,netList,field,key){
+  return netList.map((n,i)=>({label:n.name,data:entries.map(e=>(e[field]||{})[n.id]||0),borderColor:n.color,backgroundColor:'transparent',borderDash:DASH_PATTERNS[i%10],tension:.3,pointRadius:2,borderWidth:2,hidden:hiddenNets[key].has(n.id)}));
+}
+
+function buildCharts(entries){
+  const labels=entries.map(e=>labelDate(e.date));
+  destroyChart('total');
+  charts['total']=new Chart(document.getElementById('ch-total').getContext('2d'),{type:'line',data:{labels,datasets:[{data:entries.map(e=>totalFollowers(e)),borderColor:'#6fa8d6',backgroundColor:'rgba(111,168,214,.12)',fill:true,tension:.35,pointRadius:3,pointBackgroundColor:'#6fa8d6',borderWidth:2}]},options:chartOpts()});
+  destroyChart('delta');
+  const deltas=entries.map((e,i)=>i===0?0:totalFollowers(e)-totalFollowers(entries[i-1]));
+  charts['delta']=new Chart(document.getElementById('ch-delta').getContext('2d'),{type:'bar',data:{labels,datasets:[{data:deltas,backgroundColor:deltas.map(d=>d>=0?'rgba(42,125,95,.7)':'rgba(184,64,64,.7)'),borderRadius:4}]},options:chartOpts()});
+  destroyChart('nets');buildLegendPills('leg-followers',NETS,'followers');
+  charts['nets']=new Chart(document.getElementById('ch-nets').getContext('2d'),{type:'line',data:{labels,datasets:lineDS(entries,NETS,'followers','followers')},options:{...chartOpts(),plugins:{legend:{display:false}}}});
+  destroyChart('reactions');buildLegendPills('leg-reactions',NETS_REACT,'reactions');
+  charts['reactions']=new Chart(document.getElementById('ch-reactions').getContext('2d'),{type:'line',data:{labels,datasets:lineDS(entries,NETS_REACT,'reactions','reactions')},options:{...chartOpts(),plugins:{legend:{display:false}}}});
+  destroyChart('reactpost');buildLegendPills('leg-reactpost',NETS_REACT,'reactpost');
+  charts['reactpost']=new Chart(document.getElementById('ch-reactpost').getContext('2d'),{type:'line',data:{labels,datasets:NETS_REACT.map((n,i)=>({label:n.name,data:entries.map(e=>{const p=(e.posts||{})[n.id]||0,r=(e.reactions||{})[n.id]||0;return p?r/p:0;}),borderColor:n.color,backgroundColor:'transparent',borderDash:DASH_PATTERNS[i%10],tension:.3,pointRadius:2,borderWidth:2,hidden:hiddenNets['reactpost'].has(n.id)}))},options:{...chartOpts(v=>fmtD(v)),plugins:{legend:{display:false}}}});
+  destroyChart('views');buildLegendPills('leg-views',NETS_VIEWS,'views');
+  charts['views']=new Chart(document.getElementById('ch-views').getContext('2d'),{type:'line',data:{labels,datasets:lineDS(entries,NETS_VIEWS,'reactions','views')},options:{...chartOpts(),plugins:{legend:{display:false}}}});
+  destroyChart('viewspost');buildLegendPills('leg-viewspost',NETS_VIEWS,'viewspost');
+  charts['viewspost']=new Chart(document.getElementById('ch-viewspost').getContext('2d'),{type:'line',data:{labels,datasets:NETS_VIEWS.map((n,i)=>({label:n.name,data:entries.map(e=>{const p=(e.posts||{})[n.id]||0,r=(e.reactions||{})[n.id]||0;return p?r/p:0;}),borderColor:n.color,backgroundColor:'transparent',borderDash:DASH_PATTERNS[i%10],tension:.3,pointRadius:2,borderWidth:2,hidden:hiddenNets['viewspost'].has(n.id)}))},options:{...chartOpts(v=>fmtD(v)),plugins:{legend:{display:false}}}});
+}
+
+// FORM
+function renderForm(){
+  const d=document.getElementById('entry-date');
+  if(editDate)d.value=editDate;else d.value=today();
+  checkOverwrite();
+  const grid=document.getElementById('net-inputs');grid.innerHTML='';
+  const entries=[...getData(entity)].sort((a,b)=>a.date.localeCompare(b.date));
+  const existing=editDate?entries.find(e=>e.date===editDate):null;
+  const last=entries.length?entries[entries.length-1]:null;
+  NETS.forEach(n=>{
+    const lF=(existing?.followers||last?.followers||{})[n.id];
+    const lP=(existing?.posts||last?.posts||{})[n.id];
+    const lR=(existing?.reactions||last?.reactions||{})[n.id];
+    const vF=existing?(existing.followers[n.id]??''):'';
+    const vP=existing?(existing.posts[n.id]??''):'';
+    const vR=existing?(existing.reactions[n.id]??''):'';
+    const rl=n.views?'Views':'Réactions';
+    const engF=n.engagement?`<div class="input-row"><label>Posts</label><input type="number" id="inp-p-${n.id}" value="${vP}" placeholder="${lP!=null?fmt(lP):''}"><small>Dernier : ${lP!=null?fmt(lP):'—'}</small></div><div class="input-row"><label>${rl}</label><input type="number" id="inp-r-${n.id}" value="${vR}" placeholder="${lR!=null?fmt(lR):''}"><small>Dernier : ${lR!=null?fmt(lR):'—'}</small></div>`:'';
+    grid.innerHTML+=`<div class="net-input-card"><div class="net-head"><div class="net-dot" style="background:${n.color}"></div><span class="net-name">${n.name}</span></div><div class="input-row"><label>Abonnés</label><input type="number" id="inp-f-${n.id}" value="${vF}" placeholder="${lF!=null?fmt(lF):''}"><small>Dernier : ${lF!=null?fmt(lF):'—'}</small></div>${engF}</div>`;
+  });
+}
+
+function checkOverwrite(){
+  const date=document.getElementById('entry-date').value;
+  const existing=getData(entity).find(e=>e.date===date);
+  document.getElementById('overwrite-warn').style.display=(existing&&!editDate)?'block':'none';
+}
+
+function cancelForm(){editDate=null;switchTab('dash');}
+
+async function saveEntry(){
+  if(saving)return;
+  const date=document.getElementById('entry-date').value;
+  if(!date){alert('Veuillez sélectionner une date.');return;}
+  const entries=[...getData(entity)].sort((a,b)=>a.date.localeCompare(b.date));
+  const last=entries.length?entries[entries.length-1]:null;
+  const existing=entries.find(e=>e.date===date);
+  if(existing&&!editDate&&!confirm('Une saisie existe déjà pour cette date. Écraser ?'))return;
+  const followers={},posts={},reactions={};
+  NETS.forEach(n=>{
+    const fv=document.getElementById('inp-f-'+n.id)?.value.trim();
+    followers[n.id]=fv!==''?parseInt(fv):(existing?.followers[n.id]??last?.followers[n.id]??0);
+    if(n.engagement){
+      const pv=document.getElementById('inp-p-'+n.id)?.value.trim();
+      const rv=document.getElementById('inp-r-'+n.id)?.value.trim();
+      posts[n.id]=pv!==''?parseInt(pv):(existing?.posts[n.id]??last?.posts[n.id]??0);
+      reactions[n.id]=rv!==''?parseInt(rv):(existing?.reactions[n.id]??last?.reactions[n.id]??0);
+    }
+  });
+  saving=true;
+  const entry={id:existing?.id||genId(),date,followers,posts,reactions};
+  const updated=existing?getData(entity).map(e=>e.date===date?entry:e):[...getData(entity),entry];
+  await setData(entity,updated);
+  saving=false;
+  editDate=null;
+  switchTab('dash');
+}
+
+// HISTORY
+function renderHist(){
+  const head=document.getElementById('hist-head'),body=document.getElementById('hist-body');
+  head.innerHTML=`<th>Date</th><th>Total</th><th>Variation</th>${NETS.map(n=>`<th title="${n.name}">${n.name.slice(0,4)}</th>`).join('')}<th colspan="2"></th>`;
+  const entries=[...getData(entity)].sort((a,b)=>b.date.localeCompare(a.date));
+  body.innerHTML='';
+  entries.forEach((e,i)=>{
+    const tot=totalFollowers(e),prev=entries[i+1];
+    const delta=prev?tot-totalFollowers(prev):null;
+    const sign=delta!=null?(delta>=0?'+':''):'',cls=delta!=null?(delta>=0?'pos':'neg'):'';
+    body.innerHTML+=`<tr><td>${e.date}</td><td>${fmt(tot)}</td><td class="${cls}">${delta!=null?sign+fmt(delta):'—'}</td>${NETS.map(n=>`<td>${fmt((e.followers||{})[n.id]||0)}</td>`).join('')}<td><button class="btn-sm" onclick="editEntry('${e.date}')">Éditer</button></td><td><button class="btn-sm btn-del" onclick="deleteEntry('${e.date}')">Suppr.</button></td></tr>`;
+  });
+}
+
+function renderEngHist(){
+  const head=document.getElementById('eng-head'),body=document.getElementById('eng-body');
+  head.innerHTML=`<th>Date</th>${NETS_ENG.map(n=>`<th>${n.name.slice(0,4)} P</th><th>${n.name.slice(0,4)} R</th><th>Ratio</th>`).join('')}`;
+  const entries=[...getData(entity)].sort((a,b)=>b.date.localeCompare(a.date));
+  body.innerHTML='';
+  entries.forEach(e=>{
+    const cells=NETS_ENG.map(n=>{const p=(e.posts||{})[n.id]||0,r=(e.reactions||{})[n.id]||0;return`<td>${fmt(p)}</td><td>${fmt(r)}</td><td>${fmtD(p?r/p:0)}</td>`;}).join('');
+    body.innerHTML+=`<tr><td>${e.date}</td>${cells}</tr>`;
+  });
+}
+
+function editEntry(date){editDate=date;switchTab('new');}
+async function deleteEntry(date){
+  if(!confirm('Supprimer la saisie du '+date+' ?'))return;
+  await setData(entity,getData(entity).filter(e=>e.date!==date));
+  if(tab==='hist')renderHist();else renderEngHist();
+}
+
+function switchEntity(ent){
+  entity=ent;
+  document.getElementById('btn-fr').classList.toggle('active',ent==='fr');
+  document.getElementById('btn-db').classList.toggle('active',ent==='debout');
+  editDate=null;renderCurrent();
+}
+
+function switchTab(t){
+  tab=t;
+  ['dash','new','hist','eng'].forEach(id=>{
+    document.getElementById('pane-'+id).classList.toggle('hidden-tab',id!==t);
+    document.getElementById('tab-'+id).classList.toggle('active',id===t);
+  });
+  renderCurrent();
+}
+
+function exportCSV(){
+  const headers=['entite','date','total_followers',...NETS.map(n=>n.id+'_followers'),...NETS_ENG.map(n=>n.id+'_posts'),...NETS_ENG.map(n=>n.id+'_reactions')];
+  const rows=[headers.join(',')];
+  for(const ent of['fr','debout']){
+    [...getData(ent)].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
+      rows.push([ent,e.date,totalFollowers(e),...NETS.map(n=>(e.followers||{})[n.id]||0),...NETS_ENG.map(n=>(e.posts||{})[n.id]||0),...NETS_ENG.map(n=>(e.reactions||{})[n.id]||0)].join(','));
+    });
+  }
+  const blob=new Blob([rows.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='followers_export.csv';a.click();URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
